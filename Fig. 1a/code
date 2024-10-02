@@ -1,4 +1,4 @@
-rt=read.table("transid_GSE35574_series_matrix.txt",header = F,sep = "\t",check.names = F,quote = "")
+rt=read.table("Expression matrix file.txt",header = F,sep = "\t",check.names = F,quote = "")
 rt=t(rt)
 rt=rt[order(rt[,1]),]
 rt=t(rt)
