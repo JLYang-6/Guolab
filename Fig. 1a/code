@@ -1,0 +1,72 @@
+rt=read.table("transid_GSE35574_series_matrix.txt",header = F,sep = "\t",check.names = F,quote = "")
+rt=t(rt)
+rt=rt[order(rt[,1]),]
+rt=t(rt)
+rt=rt[-1,-c(42:76)]
+row.names(rt)=rt[,1]
+colnames(rt)=rt[1,]
+rt=rt[-1,-1]
+rt1=matrix(as.numeric(rt),nrow=nrow(rt))
+row.names(rt1)=row.names(rt)
+colnames(rt1)=colnames(rt)
+rt=rt1
+
+library(limma)
+#normalize
+pdf(file="rawBox.pdf")
+boxplot(rt,col = "blue",xaxt = "n",outline = F)
+dev.off()
+rt=normalizeBetweenArrays(as.matrix(rt),method="scale")
+pdf(file="normalBox.pdf")
+boxplot(rt,col = "red",xaxt = "n",outline = F)
+dev.off()
+
+#differential
+class <- c(rep("CON",40),rep("PE",19))
+design <- model.matrix(~factor(class))
+colnames(design) <- c("CON","PE")
+fit <- lmFit(rt,design)
+fit2 <- eBayes(fit)
+allDiff=topTable(fit2,adjust='fdr',coef=2,number=200000)
+write.table(allDiff,file="limmaTab.xls",sep="\t",quote=F)
+
+#write table
+diffLab <- allDiff[with(allDiff, ((logFC> 0.5 | logFC< (-0.5)) & adj.P.Val < 0.05 )), ]
+write.table(diffLab,file="diffExp.xls",sep="\t",quote=F)
+diffExpLevel <- rt[rownames(diffLab),]
+qvalue=allDiff[rownames(diffLab),]$adj.P.Val
+diffExpQvalue=cbind(qvalue,diffExpLevel)
+write.table(diffExpQvalue,file="diffExpLevel.xls",sep="\t",quote=F)
+
+library(pheatmap)
+
+conNum=40                      
+treatNum=19                      
+expFile="diffExpLevel.xls"        
+geneFile="intersectGenes.txt"    
+rt=read.table(expFile,header=T,sep="\t",row.names=1,check.names=F)
+rt=rt[,-1]
+geneRT=read.table(geneFile,header=F,sep="\t",check.names=F)
+hmExp=rt[as.vector(geneRT[,1]),]
+
+
+hmExp=log2(hmExp+0.1)
+Type=c(rep("Normal",conNum),rep("PE",treatNum))
+names(Type)=colnames(hmExp)
+Type=as.data.frame(Type)
+ann_colors <- list(Type = c(Normal = '#1B19197F',PE = '#6318797F'))
+pdf(file="Fig. 1a.pdf",height=11,width=10)
+pheatmap(hmExp, 
+         annotation=Type, 
+         color = colorRampPalette(c("blue2", "white", "red2"))(50),
+         annotation_colors=ann_colors,
+         border_color = "black",
+         cluster_cols =F,
+         cluster_rows = F,
+         show_colnames = F,
+         show_rownames = T,
+         scale="row",
+         fontsize = 12,
+         fontsize_row=8,
+         fontsize_col=10)
+dev.off()
